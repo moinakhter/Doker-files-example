@@ -1,0 +1,14 @@
+[Unit]
+Description=The assistant noice suppression activation service
+Requires=pulseaudio.socket sound.target
+After=pulseaudio.socket sound.target
+
+[Service]
+Type=simple
+RemainAfterExit=yes
+ExecStart=/bin/bash -c '/usr/local/bin/noisesup activate --no-set-default'
+ExecStop=/bin/bash -c '/usr/local/bin/noisesup deactivate --force-unload-all'
+ExecReload=/usr/bin/kill $MAINPID
+
+[Install]
+WantedBy=default.target

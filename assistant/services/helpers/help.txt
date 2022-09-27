@@ -1,0 +1,22 @@
+NAME
+     assistant services - dizzy assistant services command.
+
+SYNOPSIS
+    assistant services [flag] [OPTION]...
+
+OPTIONS
+   Generic Program Information
+        -h, --help
+            Displays Help
+        start         Starts assistant services.
+        status        Get assistant services status.
+            -l status     Displays services in loop dynamically active.
+            -d status     Displays services in all the details and information.
+        stop          Stops assistant services.
+        restart       Restart assistant services.
+        enable        Enable assistant services in case it was disabled.
+        disable       Disable assistant services.
+        cat           View service content
+
+AUTHOR
+       DizaynVIP tech.

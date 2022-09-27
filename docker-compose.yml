@@ -1,0 +1,203 @@
+version: "3.3"
+
+
+# ------------------------------------ GLOBAL DESCRIPTION ------------------------------------ #
+
+# build: {dockerfile_path}, providing docker file directory path to create service using dockerfile
+
+# network_mode: {host} is used for sharing the same networking space with the Host.
+
+# privileged: {true} grants a Docker container root capabilities to all devices on the host system
+
+# depends_on: {redis|service_name}, it's mean redis/service_name is the parent service, and it should start first.
+
+# volumes: {/etc/localtime:/etc/localtime:ro} localtime volume provide access host time to the docker container.
+
+# volumes:{dizzy_vol:/home/dizzy/Dizzy/} dizzy_vol is the custom volume name, you can find the details end of the file
+# {/home/dizzy/Dizzy/} is the directory of the docker container where {dizzy_vol} files & folder will appear. 
+
+
+
+# ------------------------------------ Services ------------------------------------ #
+
+services:
+
+  # Assistant service may require pulseaudio and camera access, we are providing volumes to access system microphone and camera.
+  # volumes: {/run/user/1000/pulse:/run/user/1000/pulse} {/tmp/.X11-unix:/tmp/.X11-unix}{/var/run/dbus:/var/run/dbus} these volumes are providing access pulseaudio to the docker container.
+  # environment: {PULSE_SERVER=unix:/run/user/1000/pulse/native} is using start the pulseaudio server for the user
+  # volumes: {/dev/video0:/dev/video0} {/dev/video1:/dev/video1}{/dev/nvidia0:/dev/nvidia0 } these volume are for provide access pulseaudio to the docker container.
+  assistant_service:
+    build: assistant/.
+    # container_name: assistant_container
+    #command: echo "dizzy" | su root service redis-server start && [ ! -d /home/dizzy/Dizzy/.venv/lib/python3.9/site-packages/nltk ] &&  cd /home/dizzy/Dizzy/ &&  assistant -e setup;  /home/dizzy/Dizzy/.venv/bin/python /home/dizzy/Dizzy/assistant/__main__.py
+    entrypoint: echo "dizzy" | su root service redis-server start && [ ! -d /home/dizzy/Dizzy/.venv/lib/python3.9/site-packages/nltk ] &&  cd /home/dizzy/Dizzy/ &&  assistant -e setup;  /home/dizzy/Dizzy/.venv/bin/python /home/dizzy/Dizzy/assistant/__main__.py
+    #entrypoint: echo "dizzy" | su root  service redis-server start  && /home/dizzy/Dizzy/.venv/bin/python /home/dizzy/Dizzy/assistant/__main__.py
+    devices:
+      - /dev/snd
+    stdin_open: true
+    volumes:
+      - /var/run/dbus:/var/run/dbus
+      - /dev/video0:/dev/video0
+      - /dev/video1:/dev/video1
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /run/user/1000/pulse:/run/user/1000/pulse
+      - dizzy_vol:/home/dizzy/Dizzy/
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - PULSE_SERVER=unix:/run/user/1000/pulse/native
+      - DISPLAY=unix$DISPLAY
+
+ 
+ # nlp service
+  nlp_service:
+    build: nlp/.
+    network_mode: "host"
+    depends_on:
+      - redis
+      - assistant_service
+      - roberta_service
+      - bert_service
+    volumes:
+    - dizzy_vol:/home/dizzy/Dizzy/
+    - /etc/localtime:/etc/localtime:ro
+
+  # roberta service
+  roberta_service:
+   build: roberta/.
+   network_mode: "host"
+   depends_on:
+      - redis
+      - assistant_service
+   volumes:
+    - dizzy_vol:/home/dizzy/Dizzy/
+    - /etc/localtime:/etc/localtime:ro
+
+  # bert service
+  bert_service:
+    build: bert/.
+    network_mode: "host"
+    depends_on:
+      - redis
+      - assistant_service
+    volumes:
+     - dizzy_vol:/home/dizzy/Dizzy/
+     - /etc/localtime:/etc/localtime:ro
+#
+#  # wake_word_recognizer service may require pulseaudio, we are providing volumes to access system microphone.
+#  # volumes:{/run/user/1000/pulse:/run/user/1000/pulse} {/tmp/.X11-unix:/tmp/.X11-unix}{/var/run/dbus:/var/run/dbus} these volumes are providing access pulseaudio to the docker container.
+  # environment: {PULSE_SERVER=unix:/run/user/1000/pulse/native} is using start the pulseaudio server for the user.
+  wake_word_recognizer_service:
+    build: wake_word_recognizer/.
+    network_mode: "host"
+    volumes:
+      - /var/run/dbus:/var/run/dbus
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /run/user/1000/pulse:/run/user/1000/pulse
+      - dizzy_vol:/home/dizzy/Dizzy/
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+        - PULSE_SERVER=unix:/run/user/1000/pulse/native
+        - DISPLAY=unix$DISPLAY
+    depends_on:
+      - redis
+      - assistant_service
+
+  # hologram face service
+  hologram_face_service:
+    build: hologram_face/.
+    network_mode: "host"
+    privileged: true
+    depends_on:
+      - redis
+      - assistant_service
+    volumes:
+     - dizzy_vol:/home/dizzy/Dizzy/
+     - /etc/localtime:/etc/localtime:ro
+
+  # translation recognition service
+  translation_service:
+    build: translation/.
+    network_mode: "host"
+    depends_on:
+     - redis
+     - assistant_service
+    volumes:
+     - dizzy_vol:/home/dizzy/Dizzy/
+     - /etc/localtime:/etc/localtime:ro
+
+#  # face recognition service required camera access, we are providing volumes to access system camera .
+#  # volumes:{/dev/video0:/dev/video0} {/dev/video1:/dev/video1}{/dev/nvidia0:/dev/nvidia0 } these volume are for provide access pulseaudio to the docker container.
+  facial_recognition_service:
+    build: facial_recognition/.
+    network_mode: "host"
+    privileged: true
+    depends_on:
+      - redis
+      - assistant_service
+    volumes:
+      - /dev/video0:/dev/video0
+      - /dev/video1:/dev/video1
+      - /dev/nvidia0:/dev/nvidia0
+      - dizzy_vol:/home/dizzy/Dizzy/
+      - /etc/localtime:/etc/localtime:ro
+#
+#  # question & answer service
+  qna_service:
+    build: qna/.
+    network_mode: "host"
+    depends_on:
+      - redis
+      - assistant_service
+    volumes:
+     - dizzy_vol:/home/dizzy/Dizzy/
+     - /etc/localtime:/etc/localtime:ro
+
+#  # noise service required pulseaudio, we are providing volumes to access system microphone.
+#  # volumes: {/run/user/1000/pulse:/run/user/1000/pulse} {/tmp/.X11-unix:/tmp/.X11-unix}{/var/run/dbus:/var/run/dbus} these volumes are providing access pulseaudio to the docker container.
+#  # environment: {PULSE_SERVER=unix:/run/user/1000/pulse/native} is using start the pulseaudio server for the user.
+#  noise_service:
+#    build: noise/.
+#    devices:
+#      - /dev/snd
+#    privileged: true
+#    volumes:
+#      - /var/run/dbus:/var/run/dbus
+#      - /tmp/.X11-unix:/tmp/.X11-unix
+#      - /run/user/1000/pulse:/run/user/1000/pulse
+#      - dizzy_vol:/home/dizzy/Dizzy/
+#      - /etc/localtime:/etc/localtime:ro
+#    environment:
+#      - PULSE_SERVER=unix:/run/user/1000/pulse/native
+#      - DISPLAY=unix$DISPLAY
+#    depends_on:
+#      - redis
+          
+  # using redis image for services, services communicate each other using redis-server
+  # make sure redis-server port is not busy or occupied by other application
+  # first stop system redis-server if it is running.
+  # in the command: setting up darvis password for redis-server, services are using darvis password.
+  redis:
+    image: library/redis:7.0.2-alpine
+    container_name: redis2
+    ports:
+      - 6379:6379
+    command: redis-server --save 20 1 --loglevel warning --requirepass darvis
+    restart: unless-stopped
+
+
+# ------------------------------------ Volume ------------------------------------ #
+
+# using volume {dizzy_vol} and binding a project directory {/home/dai1/Project/Dizzy}
+# all services will have access project files & folders, Project Directory -> {/home/dai1/Project/Dizzy}
+# docker composer crate volume with prefix project, so we will have a volume name is project_dizzy_vol
+volumes:
+  dizzy_vol:
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: '/home/dai1/Project/assistant'
+
+# use this in the assistant/__main__.py to fix import path issue
+#import sys
+#sys.path.append(path.join(path.dirname(__file__), '..'))

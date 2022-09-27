@@ -1,0 +1,52 @@
+#Download base image ubuntu 20.04
+FROM ubuntu:20.04
+
+# LABEL about the custom image
+LABEL maintainer="dizzyassistant.com"
+LABEL version="1.0"
+LABEL description="Dizzy assistant main service."
+ENV UNAME dizzy
+
+# Disable Prompt During Packages Installation
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y sudo \
+    python3 \
+    tzdata \
+    python3.9 \
+    build-essential
+
+# Adding root password
+RUN echo "root:dizzy" | chpasswd
+
+ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
+ENV PATH /opt/conda/bin:$PATH
+
+# Adding a user
+RUN useradd -m dizzy && echo "dizzy:dizzy" | chpasswd && adduser dizzy sudo
+
+# Copying Pulse Configration file to the docker image.
+COPY pulse-client.conf /etc/pulse/client.conf
+COPY commands/ /home/${UNAME}/Dizzy/commands/
+COPY services/ /home/${UNAME}/Dizzy/services/
+COPY shells/ /home/${UNAME}/Dizzy/shells/
+COPY Pipfile /home/${UNAME}/Dizzy/
+COPY Pipfile.lock /home/${UNAME}/Dizzy/
+
+RUN  bash -l /home/${UNAME}/Dizzy/commands/deploy.sh -d
+
+# Installing OS dependencies, and Python environment
+RUN  assistant -o setup
+#RUN  cd /home/dizzy/Dizzy/ && assistant -e setup
+
+
+
+#RUN echo "dizzy" | su root service redis-server start
+USER dizzy
+
+ENV HOME /home/dizzy/Dizzy
+WORKDIR /home/dizzy/Dizzy
+
+
+CMD echo "dizzy" | su root service redis-server start && /home/dizzy/Dizzy/.venv/bin/python /home/dizzy/Dizzy/assistant/__main__.py
+
